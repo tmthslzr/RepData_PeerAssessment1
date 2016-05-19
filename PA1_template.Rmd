@@ -1,25 +1,92 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Reproducible Research - Project 1"
+author: "Timothy"
+date: "May 19, 2016"
+output: html_document
 ---
 
+# Reproducible research peer assessment 1
 
-## Loading and preprocessing the data
+Load in the data.
 
+```{r echo=TRUE}
+data <- read.csv("activity/activity.csv")
+```
 
+##What is the mean total number of steps taken per day?
 
-## What is mean total number of steps taken per day?
-
-
-
-## What is the average daily activity pattern?
-
-
-
-## Imputing missing values
+We are to ignore missing values, i.e. NAs. Thus, where appropriate, na.rm will be set to **TRUE**
 
 
+First, we use tapply() to obtaint the total number of steps for each day.
+This new set of numbers can then by graphed in a histogram and we can use mean() and median() to get those respective statistics.
+```{r, echo=TRUE}
+stepstotal <- tapply(data$steps, data$date, sum, na.rm=TRUE)
+hist(stepstotal,breaks=50,main = "Histogram of Steps")
+```
 
-## Are there differences in activity patterns between weekdays and weekends?
+```{r, echo=TRUE}
+mean(stepstotal)
+median(stepstotal)
+
+```
+The mean is `r mean(stepstotal)`
+The median is `r median(stepstotal)`
+
+##What is the average daily pattern?
+
+```{r, echo=TRUE}
+stepsinterval <- aggregate(steps ~ interval, data = data, FUN = mean, na.rm=TRUE)
+head(stepsinterval)
+plot(stepsinterval, type="l", main = "Average steps by interval", xlab ="5 minute interval", ylab = "Average steps across days")
+```
+
+```{r, echo=TRUE}
+maxsteps <- max(stepsinterval$steps)
+interval <- stepsinterval$interval[stepsinterval$steps==maxsteps]
+```
+
+The maximum number of steps is `r maxsteps` and occurss during the `r interval` interval.
+
+###Imputing missing values
+
+The number of NAs in the dataset:
+
+```{r, echo=TRUE}
+length(data$steps[data$steps == "NA"])
+```
+
+Fill in the NAs with the mean, and there is a handy function to impute called **impute()** in the package Hmisc
+```{r, echo=TRUE}
+library(Hmisc)
+dataimpute <- data
+dataimpute$steps <- impute(dataimpute$steps, fun=mean)
+```
+Make a histogram of total number of steps per day, report the mean and median.
+```{r, echo=TRUE}
+totalstepsimputed <- tapply(dataimpute$steps, dataimpute$date, sum)
+hist(totalstepsimputed,breaks=50, main = "Histogram of Steps in imputed data")
+```
+
+```{r, echo=TRUE}
+meanimputed <- mean(totalstepsimputed)
+medianimputed <- median(totalstepsimputed)
+```
+The mean is `r meanimputed` and the median is `r medianimputed`
+DO THEY DIFFER? WHAT IS THE IMPACT?
+
+Yes, these differ from the originial values - mean and median are now the same, and have increased.
+
+##Are there differences in activity patterns between weekdays and weekends?
+```{r, echo=TRUE}
+dataimpute$days <- weekdays(as.Date(dataimpute$date, format = "%Y-%m-%d"))
+
+dataimpute$daytype <- ifelse(dataimpute$days== "Sunday" | dataimpute$days == "Saturday", "weekend", "weekday")
+dataimpute$daytype <- as.factor(dataimpute$daytype)
+```
+
+```{r, echo=TRUE}
+meanfinal <- aggregate(steps ~ interval + daytype, data = dataimpute, mean)
+library(lattice)
+xyplot(steps~interval|daytype, data=meanfinal, xlab="INTERVAL", ylab="NUMBER OF STEPS", type="l", layout=c(1,2))
+```
